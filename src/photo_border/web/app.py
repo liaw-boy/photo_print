@@ -36,8 +36,16 @@ def _resolve_mode(ratio: str | None, percent: float) -> str:
     return "percent"
 
 
+def _render_uploader():
+    return st.sidebar.file_uploader(
+        "上傳照片（可多選）",
+        type=["jpg", "jpeg", "png", "tif", "tiff", "heic", "heif"],
+        accept_multiple_files=True,
+    )
+
+
 def _render_sidebar_controls() -> dict:
-    st.sidebar.header("參數設定")
+    st.sidebar.markdown("### 1. 邊框樣式")
 
     ratio_label = st.sidebar.selectbox("補滿長寬比", list(RATIO_PRESET_OPTIONS), index=0)
     ratio_choice = RATIO_PRESET_OPTIONS[ratio_label]
@@ -52,18 +60,21 @@ def _render_sidebar_controls() -> dict:
         ratio = ratio_choice
 
     percent = st.sidebar.slider("留白粗細（佔邊長比例）", 0.0, 0.3, 0.05, step=0.01)
-
     color = st.sidebar.color_picker("邊框顏色", "#FFFFFF")
+
+    st.sidebar.divider()
+    st.sidebar.markdown("### 2. 輸出設定")
+
+    format_label = st.sidebar.selectbox("輸出格式", list(FORMAT_OPTIONS))
+    output_format = FORMAT_OPTIONS[format_label]
+    quality = st.sidebar.slider("JPEG 品質", 1, 100, 95)
+    keep_metadata = st.sidebar.checkbox("保留 EXIF / ICC profile", value=True)
 
     with st.sidebar.expander("進階設定"):
         edge_label = st.radio(
             "留白粗細的參考邊", ["短邊", "長邊"], index=0, horizontal=True
         )
         edge = "short" if edge_label == "短邊" else "long"
-        format_label = st.selectbox("輸出格式", list(FORMAT_OPTIONS))
-        output_format = FORMAT_OPTIONS[format_label]
-        quality = st.slider("JPEG 品質", 1, 100, 95)
-        keep_metadata = st.checkbox("保留 EXIF / ICC profile", value=True)
         metadata_backend = st.selectbox("Metadata 處理方式", ["auto", "piexif", "exiftool"])
 
     return {
@@ -92,7 +103,11 @@ def _render_preview(uploaded_file, config) -> None:
         st.warning(f"預覽失敗：{exc}")
         return
 
-    st.image(bordered, caption="預覽（第一張，等比縮圖）", use_container_width=True)
+    col_before, col_after = st.columns(2)
+    with col_before:
+        st.image(image, caption="原圖", use_container_width=True)
+    with col_after:
+        st.image(bordered, caption="加框後", use_container_width=True)
 
 
 def _run_batch(uploaded_files, config) -> None:
@@ -156,16 +171,11 @@ def main() -> None:
     st.title("🖼️ 加白邊批次工具")
     st.caption("模仿 Lightroom for iPad「加邊框並匯出」，純留白 padding，保留原始 EXIF/ICC。")
 
+    uploaded_files = _render_uploader()
     ui_values = _render_sidebar_controls()
 
-    uploaded_files = st.file_uploader(
-        "上傳照片（可多選）",
-        type=["jpg", "jpeg", "png", "tif", "tiff", "heic", "heif"],
-        accept_multiple_files=True,
-    )
-
     if not uploaded_files:
-        st.info("請先上傳照片。")
+        st.info("請先在左側上傳照片。")
         return
 
     try:

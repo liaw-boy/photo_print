@@ -24,7 +24,7 @@ class TestAppSmoke:
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
-        assert any("請先上傳照片" in info.value for info in at.info)
+        assert any("請先" in info.value and "上傳" in info.value for info in at.info)
 
     def test_sidebar_ratio_and_percent_controls_present(self):
         at = AppTest.from_file(str(APP_PATH))
@@ -46,9 +46,9 @@ class TestAppUploadAndProcessFlow:
         at.file_uploader[0].upload("sample.jpg", _sample_jpeg_bytes(), "image/jpeg")
         at.run(timeout=15)
         assert not at.exception
-        # 有照片後應該看得到預覽圖，不再顯示「請先上傳照片」提示
-        assert not any("請先上傳照片" in info.value for info in at.info)
-        assert len(at.image) >= 1
+        # 有照片後應該看得到預覽圖（原圖+加框後並排），不再顯示上傳提示
+        assert not any("請先" in info.value and "上傳" in info.value for info in at.info)
+        assert len(at.image) >= 2
 
         process_button = next(b for b in at.button if b.label == "開始批次處理")
         process_button.click().run(timeout=15)
