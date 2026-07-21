@@ -24,7 +24,7 @@ class TestAppSmoke:
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
-        assert any("放我" in c.value and "Eric" in c.value for c in at.caption)
+        assert any("liaw-boy" in c.value and "Eric" in c.value for c in at.caption)
 
     def test_shows_upload_prompt_when_no_files(self):
         at = AppTest.from_file(str(APP_PATH))

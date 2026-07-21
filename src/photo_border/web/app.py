@@ -172,7 +172,7 @@ def _render_results(current_signature: tuple) -> None:
 
 def main() -> None:
     st.title("🖼️ PhotoFrame Lab")
-    st.caption("留白，是為了讓照片自己說話。批次加框，原始畫質與 EXIF/ICC 資訊完整保留。")
+    st.caption("留白，是為了讓照片自己說話。原始畫質與 EXIF/ICC 資訊完整保留。")
 
     uploaded_files = _render_uploader()
     ui_values = _render_sidebar_controls()
@@ -199,7 +199,7 @@ def main() -> None:
 def _render_footer() -> None:
     st.divider()
     st.caption(
-        "作者：放我　・　特別感謝 Eric 支援硬體　・　"
+        "作者：liaw-boy　・　特別感謝 Eric 支援硬體　・　"
         "[GitHub @liaw-boy](https://github.com/liaw-boy/photo_print)"
     )
 
