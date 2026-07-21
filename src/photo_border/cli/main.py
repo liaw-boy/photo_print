@@ -2,67 +2,15 @@ from pathlib import Path
 
 import typer
 
-from photo_border.core import batch, io as image_io, pipeline
-from photo_border.core.color import parse_color
-from photo_border.core.errors import InvalidBorderConfigError, PhotoBorderError
-from photo_border.core.models import BorderConfig, BorderMode, ReferenceEdge
+from photo_border.core import batch, config_builder, io as image_io, pipeline
+from photo_border.core.errors import PhotoBorderError
+from photo_border.core.models import BorderConfig
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 
-_MODE_MAP = {
-    "percent": BorderMode.PERCENT,
-    "aspect": BorderMode.ASPECT,
-    "aspect-then-percent": BorderMode.ASPECT_THEN_PERCENT,
-}
-_EDGE_MAP = {
-    "long": ReferenceEdge.LONG,
-    "short": ReferenceEdge.SHORT,
-}
-
-
-def build_config(
-    *,
-    mode: str,
-    percent: float | None,
-    edge: str,
-    ratio: str | None,
-    color: str,
-    format: str,
-    quality: int,
-    no_metadata: bool,
-    metadata_backend: str,
-) -> BorderConfig:
-    """把 CLI 傳入的字串參數組成 BorderConfig。純函式，跟 Typer 無關，方便單獨測試。"""
-    if mode not in _MODE_MAP:
-        raise InvalidBorderConfigError(
-            f"未知的 --mode: {mode!r}（可用值：{', '.join(_MODE_MAP)}）"
-        )
-    if edge not in _EDGE_MAP:
-        raise InvalidBorderConfigError(f"未知的 --edge: {edge!r}（可用值：long, short）")
-
-    return BorderConfig(
-        mode=_MODE_MAP[mode],
-        percent=percent,
-        reference_edge=_EDGE_MAP[edge],
-        target_ratio=_parse_ratio(ratio),
-        color=parse_color(color),
-        output_format=None if format == "keep" else format,
-        jpeg_quality=quality,
-        keep_metadata=not no_metadata,
-        metadata_backend=metadata_backend,
-    )
-
-
-def _parse_ratio(value: str | None) -> tuple[int, int] | None:
-    if value is None:
-        return None
-    parts = value.split(":")
-    if len(parts) != 2:
-        raise InvalidBorderConfigError(f"--ratio 需為 W:H 格式，例如 4:5，收到: {value!r}")
-    try:
-        return (int(parts[0]), int(parts[1]))
-    except ValueError as exc:
-        raise InvalidBorderConfigError(f"--ratio 需為整數 W:H，收到: {value!r}") from exc
+# 保留 build_config 名稱與 core.config_builder.build_border_config 同義，
+# 方便既有測試與其他呼叫端沿用（實際邏輯已搬到 core，cli/web 共用同一份）。
+build_config = config_builder.build_border_config
 
 
 @app.command()
