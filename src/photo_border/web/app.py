@@ -198,7 +198,10 @@ def main() -> None:
 
 def _render_footer() -> None:
     st.divider()
-    st.caption("作者：放我　・　特別感謝 Eric 支援硬體")
+    st.caption(
+        "作者：放我　・　特別感謝 Eric 支援硬體　・　"
+        "[GitHub @liaw-boy](https://github.com/liaw-boy/photo_print)"
+    )
 
 
 main()
