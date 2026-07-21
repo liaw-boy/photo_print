@@ -38,6 +38,9 @@ pythonpath = ["src"]
 
 [tool.coverage.run]
 source = ["src/photo_border"]
+# web/app.py 由 streamlit.testing.v1.AppTest 覆蓋（見 tests/web/test_app_smoke.py），
+# 但 AppTest 在獨立執行環境跑腳本，coverage.py 量不到，故排除在統計外。
+omit = ["src/photo_border/web/app.py"]
 
 [tool.coverage.report]
 fail_under = 80
