@@ -26,12 +26,16 @@ class TestAppSmoke:
 
         assert any("請先上傳照片" in info.value for info in at.info)
 
-    def test_sidebar_mode_options_present(self):
+    def test_sidebar_ratio_and_percent_controls_present(self):
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
-        radios = at.sidebar.radio
-        assert any(r.label == "邊框模式" for r in radios)
+        selectboxes = at.sidebar.selectbox
+        assert any(sb.label == "補滿長寬比" for sb in selectboxes)
+        sliders = at.sidebar.slider
+        assert any(s.label == "留白粗細（佔邊長比例）" for s in sliders)
+        # 短邊/長邊參考應該在進階設定裡，不在最上層
+        assert not any(r.label == "邊框模式" for r in at.sidebar.radio)
 
 
 class TestAppUploadAndProcessFlow:
@@ -54,3 +58,24 @@ class TestAppUploadAndProcessFlow:
             "完成" in w.value for w in at.warning
         )
         assert len(at.download_button) >= 1
+
+
+class TestAppStaleResultsInvalidated:
+    def test_changing_color_after_processing_hides_stale_download(self):
+        at = AppTest.from_file(str(APP_PATH))
+        at.run(timeout=15)
+
+        at.file_uploader[0].upload("sample.jpg", _sample_jpeg_bytes(), "image/jpeg")
+        at.run(timeout=15)
+
+        process_button = next(b for b in at.button if b.label == "開始批次處理")
+        process_button.click().run(timeout=15)
+        assert len(at.download_button) >= 1
+
+        # 處理完之後改邊框顏色，結果應視為過期，下載按鈕要消失並顯示提示
+        color_picker = next(cp for cp in at.sidebar.color_picker if cp.label == "邊框顏色")
+        color_picker.set_value("#000000").run(timeout=15)
+
+        assert not at.exception
+        assert len(at.download_button) == 0
+        assert any("請重新按" in info.value for info in at.info)
