@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 個人 Claude 設定，不進版控
+.claude/settings.local.json
+
+# 執行時的輸入/輸出照片（測試 fixtures 除外）
+input/
+output/
+*.jpg
+*.jpeg
+*.png
+*.tiff
+!tests/fixtures/**
+
+.DS_Store
