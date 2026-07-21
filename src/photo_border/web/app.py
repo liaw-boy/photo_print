@@ -97,6 +97,19 @@ def _render_sidebar_controls() -> dict:
     }
 
 
+def _select_preview_file(uploaded_files):
+    """多張照片時讓使用者選要預覽哪一張；只有一張就不用多此一舉顯示選單。"""
+    if len(uploaded_files) == 1:
+        return uploaded_files[0]
+
+    index = st.selectbox(
+        "選擇要預覽的照片",
+        options=range(len(uploaded_files)),
+        format_func=lambda i: uploaded_files[i].name,
+    )
+    return uploaded_files[index]
+
+
 def _render_preview(uploaded_file, config) -> None:
     uploaded_file.seek(0)
     image = Image.open(uploaded_file)
@@ -188,7 +201,8 @@ def main() -> None:
         return
 
     st.write(f"已上傳 {len(uploaded_files)} 張照片")
-    _render_preview(uploaded_files[0], config)
+    preview_file = _select_preview_file(uploaded_files)
+    _render_preview(preview_file, config)
 
     if st.button("開始批次處理", type="primary"):
         _run_batch(uploaded_files, config)

@@ -77,6 +77,37 @@ class TestAppUploadAndProcessFlow:
         assert len(at.download_button) >= 1
 
 
+class TestAppMultiFilePreviewSelector:
+    def test_no_selector_when_single_file(self):
+        at = AppTest.from_file(str(APP_PATH))
+        at.run(timeout=15)
+
+        at.file_uploader[0].upload("a.jpg", _sample_jpeg_bytes(), "image/jpeg")
+        at.run(timeout=15)
+
+        assert not at.exception
+        assert not any(sb.label == "選擇要預覽的照片" for sb in at.selectbox)
+
+    def test_selector_appears_with_multiple_files(self):
+        at = AppTest.from_file(str(APP_PATH))
+        at.run(timeout=15)
+
+        at.file_uploader[0].upload("a.jpg", _sample_jpeg_bytes(color=(10, 20, 30)), "image/jpeg")
+        at.file_uploader[0].upload(
+            "b.jpg", _sample_jpeg_bytes(color=(200, 100, 50)), "image/jpeg"
+        )
+        at.run(timeout=15)
+
+        assert not at.exception
+        preview_selector = next(sb for sb in at.selectbox if sb.label == "選擇要預覽的照片")
+        assert len(preview_selector.options) == 2
+
+        # 切換到第二張不應該出錯，預覽會重新渲染
+        preview_selector.set_value(1).run(timeout=15)
+        assert not at.exception
+        assert len(at.image) >= 1
+
+
 class TestAppStaleResultsInvalidated:
     def test_changing_color_after_processing_hides_stale_download(self):
         at = AppTest.from_file(str(APP_PATH))
