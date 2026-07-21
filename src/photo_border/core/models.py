@@ -26,6 +26,7 @@ class BorderConfig:
     output_format: str | None = None
     jpeg_quality: int = DEFAULT_JPEG_QUALITY
     keep_metadata: bool = True
+    metadata_backend: str = "auto"  # "auto" | "piexif" | "exiftool"
 
 
 @dataclass(frozen=True)
