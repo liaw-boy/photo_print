@@ -8,7 +8,7 @@ from photo_border.core import batch as batch_mod, border, config_builder, geomet
 from photo_border.core.errors import PhotoBorderError
 from photo_border.web import logic
 
-st.set_page_config(page_title="加白邊工具", page_icon="🖼️", layout="centered")
+st.set_page_config(page_title="PhotoFrame Lab", page_icon="🖼️", layout="centered")
 
 RATIO_PRESET_OPTIONS = {
     "不需要（維持原比例）": None,
@@ -16,7 +16,6 @@ RATIO_PRESET_OPTIONS = {
     "4:5 直式貼文": "4:5",
     "3:2 標準相片": "3:2",
     "9:16 限時動態": "9:16",
-    "自訂": "__custom__",
 }
 
 FORMAT_OPTIONS = {
@@ -48,16 +47,7 @@ def _render_sidebar_controls() -> dict:
     st.sidebar.markdown("### 1. 邊框樣式")
 
     ratio_label = st.sidebar.selectbox("補滿長寬比", list(RATIO_PRESET_OPTIONS), index=0)
-    ratio_choice = RATIO_PRESET_OPTIONS[ratio_label]
-
-    ratio = None
-    if ratio_choice == "__custom__":
-        col1, col2 = st.sidebar.columns(2)
-        width = col1.number_input("寬", min_value=1, max_value=100, value=4)
-        height = col2.number_input("高", min_value=1, max_value=100, value=5)
-        ratio = f"{int(width)}:{int(height)}"
-    elif ratio_choice is not None:
-        ratio = ratio_choice
+    ratio = RATIO_PRESET_OPTIONS[ratio_label]
 
     percent = st.sidebar.slider("留白粗細（佔邊長比例）", 0.0, 0.3, 0.05, step=0.01)
     color = st.sidebar.color_picker("邊框顏色", "#FFFFFF")
@@ -103,11 +93,7 @@ def _render_preview(uploaded_file, config) -> None:
         st.warning(f"預覽失敗：{exc}")
         return
 
-    col_before, col_after = st.columns(2)
-    with col_before:
-        st.image(image, caption="原圖", use_container_width=True)
-    with col_after:
-        st.image(bordered, caption="加框後", use_container_width=True)
+    st.image(bordered, caption="預覽（第一張，等比縮圖）", use_container_width=True)
 
 
 def _run_batch(uploaded_files, config) -> None:
@@ -168,8 +154,8 @@ def _render_results(current_signature: tuple) -> None:
 
 
 def main() -> None:
-    st.title("🖼️ 加白邊批次工具")
-    st.caption("模仿 Lightroom for iPad「加邊框並匯出」，純留白 padding，保留原始 EXIF/ICC。")
+    st.title("🖼️ PhotoFrame Lab")
+    st.caption("留白，是為了讓照片自己說話。批次加框，原始畫質與 EXIF/ICC 資訊完整保留。")
 
     uploaded_files = _render_uploader()
     ui_values = _render_sidebar_controls()

@@ -37,6 +37,17 @@ class TestAppSmoke:
         # 短邊/長邊參考應該在進階設定裡，不在最上層
         assert not any(r.label == "邊框模式" for r in at.sidebar.radio)
 
+    def test_ratio_selectbox_has_no_free_text_option(self):
+        at = AppTest.from_file(str(APP_PATH))
+        at.run(timeout=15)
+
+        ratio_selectbox = next(
+            sb for sb in at.sidebar.selectbox if sb.label == "補滿長寬比"
+        )
+        assert "自訂" not in ratio_selectbox.options
+        # 選了任何比例選項後都不該冒出寬/高數字輸入框
+        assert len(at.sidebar.number_input) == 0
+
 
 class TestAppUploadAndProcessFlow:
     def test_upload_preview_process_and_download(self):
@@ -46,9 +57,9 @@ class TestAppUploadAndProcessFlow:
         at.file_uploader[0].upload("sample.jpg", _sample_jpeg_bytes(), "image/jpeg")
         at.run(timeout=15)
         assert not at.exception
-        # 有照片後應該看得到預覽圖（原圖+加框後並排），不再顯示上傳提示
+        # 有照片後應該看得到加框後的預覽圖，不再顯示上傳提示
         assert not any("請先" in info.value and "上傳" in info.value for info in at.info)
-        assert len(at.image) >= 2
+        assert len(at.image) >= 1
 
         process_button = next(b for b in at.button if b.label == "開始批次處理")
         process_button.click().run(timeout=15)
