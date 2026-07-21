@@ -71,12 +71,7 @@ def _render_uploader():
 def _render_sidebar_controls() -> dict:
     st.sidebar.markdown("### 1. 邊框樣式")
 
-    ratio_label = st.sidebar.segmented_control(
-        "補滿長寬比",
-        options=list(RATIO_PRESET_OPTIONS),
-        default=list(RATIO_PRESET_OPTIONS)[0],
-        required=True,
-    )
+    ratio_label = st.sidebar.selectbox("補滿長寬比", list(RATIO_PRESET_OPTIONS), index=0)
     ratio = RATIO_PRESET_OPTIONS[ratio_label]
 
     percent = st.sidebar.slider("留白粗細（佔邊長比例）", 0.0, 0.3, 0.05, step=0.01)

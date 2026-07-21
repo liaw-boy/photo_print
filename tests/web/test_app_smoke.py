@@ -36,22 +36,22 @@ class TestAppSmoke:
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
-        segmented_controls = at.sidebar.segmented_control
-        assert any(sc.label == "補滿長寬比" for sc in segmented_controls)
+        selectboxes = at.sidebar.selectbox
+        assert any(sb.label == "補滿長寬比" for sb in selectboxes)
         sliders = at.sidebar.slider
         assert any(s.label == "留白粗細（佔邊長比例）" for s in sliders)
         # 短邊/長邊參考應該在進階設定裡，不在最上層
         assert not any(r.label == "邊框模式" for r in at.sidebar.radio)
 
-    def test_ratio_control_has_no_free_text_option(self):
+    def test_ratio_selectbox_has_no_free_text_option(self):
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
-        ratio_control = next(
-            sc for sc in at.sidebar.segmented_control if sc.label == "補滿長寬比"
+        ratio_selectbox = next(
+            sb for sb in at.sidebar.selectbox if sb.label == "補滿長寬比"
         )
-        assert "自訂" not in ratio_control.options
-        # 純點選比例 chip，不該冒出寬/高數字輸入框
+        assert "自訂" not in ratio_selectbox.options
+        # 就算打字篩選，也只能點選清單內的選項，不該冒出寬/高數字輸入框
         assert len(at.sidebar.number_input) == 0
 
 
