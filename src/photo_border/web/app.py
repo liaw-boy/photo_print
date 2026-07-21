@@ -196,4 +196,10 @@ def main() -> None:
     _render_results(_compute_signature(uploaded_files, config))
 
 
+def _render_footer() -> None:
+    st.divider()
+    st.caption("作者：放我　・　特別感謝 Eric 支援硬體")
+
+
 main()
+_render_footer()
