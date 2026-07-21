@@ -36,22 +36,22 @@ class TestAppSmoke:
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
-        selectboxes = at.sidebar.selectbox
-        assert any(sb.label == "補滿長寬比" for sb in selectboxes)
+        segmented_controls = at.sidebar.segmented_control
+        assert any(sc.label == "補滿長寬比" for sc in segmented_controls)
         sliders = at.sidebar.slider
         assert any(s.label == "留白粗細（佔邊長比例）" for s in sliders)
         # 短邊/長邊參考應該在進階設定裡，不在最上層
         assert not any(r.label == "邊框模式" for r in at.sidebar.radio)
 
-    def test_ratio_selectbox_has_no_free_text_option(self):
+    def test_ratio_control_has_no_free_text_option(self):
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
-        ratio_selectbox = next(
-            sb for sb in at.sidebar.selectbox if sb.label == "補滿長寬比"
+        ratio_control = next(
+            sc for sc in at.sidebar.segmented_control if sc.label == "補滿長寬比"
         )
-        assert "自訂" not in ratio_selectbox.options
-        # 選了任何比例選項後都不該冒出寬/高數字輸入框
+        assert "自訂" not in ratio_control.options
+        # 純點選比例 chip，不該冒出寬/高數字輸入框
         assert len(at.sidebar.number_input) == 0
 
 
@@ -77,8 +77,8 @@ class TestAppUploadAndProcessFlow:
         assert len(at.download_button) >= 1
 
 
-class TestAppMultiFilePreviewSelector:
-    def test_no_selector_when_single_file(self):
+class TestAppMultiFilePreviewNavigator:
+    def test_no_nav_buttons_when_single_file(self):
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
@@ -86,9 +86,9 @@ class TestAppMultiFilePreviewSelector:
         at.run(timeout=15)
 
         assert not at.exception
-        assert not any(sb.label == "選擇要預覽的照片" for sb in at.selectbox)
+        assert not any(b.label in ("◀ 上一張", "下一張 ▶") for b in at.button)
 
-    def test_selector_appears_with_multiple_files(self):
+    def test_nav_buttons_appear_and_boundaries_are_disabled(self):
         at = AppTest.from_file(str(APP_PATH))
         at.run(timeout=15)
 
@@ -99,13 +99,31 @@ class TestAppMultiFilePreviewSelector:
         at.run(timeout=15)
 
         assert not at.exception
-        preview_selector = next(sb for sb in at.selectbox if sb.label == "選擇要預覽的照片")
-        assert len(preview_selector.options) == 2
+        prev_button = next(b for b in at.button if b.label == "◀ 上一張")
+        next_button = next(b for b in at.button if b.label == "下一張 ▶")
+        # 一開始在第一張，上一張要禁用
+        assert prev_button.disabled is True
+        assert next_button.disabled is False
 
-        # 切換到第二張不應該出錯，預覽會重新渲染
-        preview_selector.set_value(1).run(timeout=15)
+    def test_next_button_advances_preview_and_disables_at_last(self):
+        at = AppTest.from_file(str(APP_PATH))
+        at.run(timeout=15)
+
+        at.file_uploader[0].upload("a.jpg", _sample_jpeg_bytes(color=(10, 20, 30)), "image/jpeg")
+        at.file_uploader[0].upload(
+            "b.jpg", _sample_jpeg_bytes(color=(200, 100, 50)), "image/jpeg"
+        )
+        at.run(timeout=15)
+
+        next_button = next(b for b in at.button if b.label == "下一張 ▶")
+        next_button.click().run(timeout=15)
+
         assert not at.exception
-        assert len(at.image) >= 1
+        assert at.session_state["preview_index"] == 1
+        prev_button = next(b for b in at.button if b.label == "◀ 上一張")
+        next_button = next(b for b in at.button if b.label == "下一張 ▶")
+        assert prev_button.disabled is False
+        assert next_button.disabled is True
 
 
 class TestAppStaleResultsInvalidated:

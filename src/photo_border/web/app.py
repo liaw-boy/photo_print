@@ -22,6 +22,14 @@ st.markdown(
         width: 1.75rem !important;
         height: 1.75rem !important;
     }
+    [data-testid*="SidebarCollapse"] {
+        width: 3rem !important;
+        height: 3rem !important;
+    }
+    [data-testid*="SidebarCollapse"] svg {
+        width: 2rem !important;
+        height: 2rem !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -63,7 +71,12 @@ def _render_uploader():
 def _render_sidebar_controls() -> dict:
     st.sidebar.markdown("### 1. 邊框樣式")
 
-    ratio_label = st.sidebar.selectbox("補滿長寬比", list(RATIO_PRESET_OPTIONS), index=0)
+    ratio_label = st.sidebar.segmented_control(
+        "補滿長寬比",
+        options=list(RATIO_PRESET_OPTIONS),
+        default=list(RATIO_PRESET_OPTIONS)[0],
+        required=True,
+    )
     ratio = RATIO_PRESET_OPTIONS[ratio_label]
 
     percent = st.sidebar.slider("留白粗細（佔邊長比例）", 0.0, 0.3, 0.05, step=0.01)
@@ -97,16 +110,96 @@ def _render_sidebar_controls() -> dict:
     }
 
 
-def _select_preview_file(uploaded_files):
-    """多張照片時讓使用者選要預覽哪一張；只有一張就不用多此一舉顯示選單。"""
+_PREV_LABEL = "◀ 上一張"
+_NEXT_LABEL = "下一張 ▶"
+
+
+def _inject_swipe_handler() -> None:
+    """在手機上左右滑動預覽圖時，模擬點擊上一張/下一張按鈕。
+
+    Streamlit 本身沒有滑動手勢，這裡用注入的 JS 監聽 touch 事件，
+    透過 window.parent.document 找到按鈕文字再觸發點擊（同源 iframe 才能這樣做）。
+    用 __pfl_swipe_attached 旗標避免每次 rerun 重複註冊監聽器。
+    """
+    st.iframe(
+        f"""
+        <script>
+        (function() {{
+            const doc = window.parent.document;
+            if (doc.__pfl_swipe_attached) return;
+            doc.__pfl_swipe_attached = true;
+
+            let startX = null;
+            doc.addEventListener('touchstart', function(e) {{
+                startX = e.changedTouches[0].screenX;
+            }}, {{passive: true}});
+
+            doc.addEventListener('touchend', function(e) {{
+                if (startX === null) return;
+                const dx = e.changedTouches[0].screenX - startX;
+                startX = null;
+                if (Math.abs(dx) < 60) return;
+
+                const buttons = doc.querySelectorAll('button');
+                let target = null;
+                buttons.forEach(function(b) {{
+                    const text = b.innerText || '';
+                    if (dx < 0 && text.includes('下一張')) target = b;
+                    if (dx > 0 && text.includes('上一張')) target = b;
+                }});
+                if (target && !target.disabled) target.click();
+            }}, {{passive: true}});
+        }})();
+        </script>
+        """,
+        height=1,
+    )
+
+
+def _go_to_index(delta: int, total: int) -> None:
+    """按鈕的 on_click callback：在 script rerun 之前先更新 session_state，
+    這樣同一輪 rerun 裡按鈕的 disabled 狀態才會馬上反映新的 index，不會延遲一輪。
+    """
+    current = st.session_state.get("preview_index", 0)
+    st.session_state["preview_index"] = max(0, min(total - 1, current + delta))
+
+
+def _render_preview_navigator(uploaded_files):
+    """多張照片時顯示「上一張/下一張」按鈕（含手機滑動），只有一張就不顯示。"""
     if len(uploaded_files) == 1:
+        st.session_state["preview_index"] = 0
         return uploaded_files[0]
 
-    index = st.selectbox(
-        "選擇要預覽的照片",
-        options=range(len(uploaded_files)),
-        format_func=lambda i: uploaded_files[i].name,
-    )
+    total = len(uploaded_files)
+    index = st.session_state.get("preview_index", 0)
+    index = max(0, min(index, total - 1))
+    st.session_state["preview_index"] = index
+
+    col_prev, col_label, col_next = st.columns([1, 3, 1])
+    with col_prev:
+        st.button(
+            _PREV_LABEL,
+            disabled=(index == 0),
+            on_click=_go_to_index,
+            args=(-1, total),
+            width="stretch",
+        )
+    with col_next:
+        st.button(
+            _NEXT_LABEL,
+            disabled=(index == total - 1),
+            on_click=_go_to_index,
+            args=(1, total),
+            width="stretch",
+        )
+    with col_label:
+        st.markdown(
+            f"<div style='text-align:center;padding-top:0.5rem'>"
+            f"{index + 1} / {total}　{uploaded_files[index].name}</div>",
+            unsafe_allow_html=True,
+        )
+
+    _inject_swipe_handler()
     return uploaded_files[index]
 
 
@@ -123,7 +216,7 @@ def _render_preview(uploaded_file, config) -> None:
         st.warning(f"預覽失敗：{exc}")
         return
 
-    st.image(bordered, caption="預覽（第一張，等比縮圖）", use_container_width=True)
+    st.image(bordered, caption="預覽（等比縮圖）", width="stretch")
 
 
 def _run_batch(uploaded_files, config) -> None:
@@ -201,7 +294,7 @@ def main() -> None:
         return
 
     st.write(f"已上傳 {len(uploaded_files)} 張照片")
-    preview_file = _select_preview_file(uploaded_files)
+    preview_file = _render_preview_navigator(uploaded_files)
     _render_preview(preview_file, config)
 
     if st.button("開始批次處理", type="primary"):
