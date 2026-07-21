@@ -1,7 +1,9 @@
 import piexif
+import pytest
 from PIL import Image
 
-from photo_border.core.io import load_image, save_image
+from photo_border.core.errors import UnsupportedFormatError
+from photo_border.core.io import extension_for_format, load_image, save_image
 
 
 def _make_exif_bytes(model: str = "TestCam") -> bytes:
@@ -88,3 +90,22 @@ class TestLoadImage:
         loaded = load_image(src)
 
         assert loaded.info.get("exif") is not None
+
+
+class TestExtensionForFormat:
+    @pytest.mark.parametrize(
+        "format,expected",
+        [
+            ("jpeg", ".jpg"),
+            ("JPEG", ".jpg"),
+            ("png", ".png"),
+            ("tiff", ".tif"),
+            ("heif", ".heic"),
+        ],
+    )
+    def test_known_formats(self, format, expected):
+        assert extension_for_format(format) == expected
+
+    def test_unsupported_format_raises(self):
+        with pytest.raises(UnsupportedFormatError):
+            extension_for_format("bmp")

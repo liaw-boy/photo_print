@@ -14,6 +14,21 @@ _EXTENSION_TO_FORMAT = {
     ".heif": "HEIF",
 }
 
+_FORMAT_TO_EXTENSION = {
+    "JPEG": ".jpg",
+    "PNG": ".png",
+    "TIFF": ".tif",
+    "HEIF": ".heic",
+}
+
+
+def extension_for_format(format: str) -> str:
+    """把格式名稱（jpeg/png/tiff/heif，大小寫不拘）轉成標準副檔名。"""
+    normalized = format.upper()
+    if normalized not in _FORMAT_TO_EXTENSION:
+        raise UnsupportedFormatError(f"不支援的輸出格式: {format}")
+    return _FORMAT_TO_EXTENSION[normalized]
+
 
 def load_image(path: Path) -> Image.Image:
     """讀取影像，保留 Pillow 解析出的 exif/icc_profile 等 metadata 於 image.info。"""

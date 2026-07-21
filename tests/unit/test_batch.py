@@ -76,6 +76,50 @@ class TestProcessBatchErrorIsolation:
         assert failed_results[0].error is not None
 
 
+class TestProcessBatchOutputFormat:
+    def test_changes_extension_when_output_format_set(self, tmp_path):
+        input_dir = tmp_path / "in"
+        output_dir = tmp_path / "out"
+        _make_jpeg(input_dir / "a.jpg")
+
+        config = BorderConfig(mode=BorderMode.PERCENT, percent=0.1, output_format="png")
+        report = process_batch(input_dir, output_dir, config)
+
+        assert report.succeeded == 1
+        assert (output_dir / "a.png").exists()
+        assert not (output_dir / "a.jpg").exists()
+
+
+class TestProcessBatchOverwrite:
+    def test_skips_existing_output_when_overwrite_false(self, tmp_path):
+        input_dir = tmp_path / "in"
+        output_dir = tmp_path / "out"
+        _make_jpeg(input_dir / "a.jpg", color=(1, 2, 3))
+        _make_jpeg(input_dir / "b.jpg", color=(4, 5, 6))
+        _make_jpeg(output_dir / "a.jpg", color=(9, 9, 9))  # 既有輸出
+
+        config = BorderConfig(mode=BorderMode.PERCENT, percent=0.1)
+        report = process_batch(input_dir, output_dir, config, overwrite=False)
+
+        assert report.total == 1  # 只處理 b.jpg
+        assert report.succeeded == 1
+        with Image.open(output_dir / "a.jpg") as untouched:
+            assert untouched.getpixel((0, 0)) == (9, 9, 9)
+
+    def test_overwrite_true_by_default(self, tmp_path):
+        input_dir = tmp_path / "in"
+        output_dir = tmp_path / "out"
+        _make_jpeg(input_dir / "a.jpg", color=(1, 2, 3))
+        _make_jpeg(output_dir / "a.jpg", color=(9, 9, 9))
+
+        config = BorderConfig(mode=BorderMode.PERCENT, percent=0.1)
+        report = process_batch(input_dir, output_dir, config)
+
+        assert report.total == 1
+        with Image.open(output_dir / "a.jpg") as overwritten:
+            assert overwritten.getpixel((0, 0)) != (9, 9, 9)
+
+
 class TestProcessBatchProgressCallback:
     def test_progress_cb_called_once_per_file_with_correct_totals(self, tmp_path):
         input_dir = tmp_path / "in"
