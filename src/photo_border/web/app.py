@@ -10,6 +10,23 @@ from photo_border.web import logic
 
 st.set_page_config(page_title="PhotoFrame Lab", page_icon="🖼️", layout="centered")
 
+# 放大預覽圖右上角的全螢幕（放大鏡）按鈕，預設太小不好點
+st.markdown(
+    """
+    <style>
+    div[data-testid="stImage"] button {
+        width: 2.75rem !important;
+        height: 2.75rem !important;
+    }
+    div[data-testid="stImage"] button svg {
+        width: 1.75rem !important;
+        height: 1.75rem !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 RATIO_PRESET_OPTIONS = {
     "不需要（維持原比例）": None,
     "1:1 正方形": "1:1",
