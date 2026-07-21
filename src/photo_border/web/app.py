@@ -36,17 +36,42 @@ st.markdown(
 )
 
 # 依 Lightroom for iPad「加邊框」的比例清單順序整理，IG/TikTok 標註沿用其實際用途
-RATIO_PRESET_OPTIONS = {
-    "原始（維持比例，四邊留白）": None,
-    "1:1　📷 IG 正方形貼文": "1:1",
-    "2:3": "2:3",
-    "3:2": "3:2",
-    "4:5　📷 IG 直式貼文": "4:5",
-    "3:4　📷 IG 直式貼文": "3:4",
-    "5:4　📷 IG 橫寬貼文": "5:4",
-    "9:16　📷 IG 限動/Reels・🎵 TikTok": "9:16",
-    "2:1": "2:1",
-}
+# (ratio, 顯示文字, 平台標註或 None)
+_RATIO_DEFS = [
+    (None, "原始（維持比例）", None),
+    ("1:1", "1:1", "IG 正方形貼文"),
+    ("2:3", "2:3", None),
+    ("3:2", "3:2", None),
+    ("4:5", "4:5", "IG 直式貼文"),
+    ("3:4", "3:4", "IG 直式貼文"),
+    ("5:4", "5:4", "IG 橫寬貼文"),
+    ("9:16", "9:16", "IG 限動/Reels・TikTok"),
+    ("2:1", "2:1", None),
+]
+
+
+def _ratio_shape_icon(ratio: str | None) -> str:
+    """依比例的長寬關係回傳一個示意形狀的小圖示，不用讀數字就能看出方向。"""
+    if ratio is None:
+        return "🔁"
+    width, height = (int(part) for part in ratio.split(":"))
+    if width == height:
+        return "⬜"
+    return "▭" if width > height else "▯"
+
+
+def _build_ratio_options() -> dict:
+    options = {}
+    for ratio, text, tag in _RATIO_DEFS:
+        icon = _ratio_shape_icon(ratio)
+        label = f"{icon}　{text}"
+        if tag:
+            label = f"{label}　({tag})"
+        options[label] = ratio
+    return options
+
+
+RATIO_PRESET_OPTIONS = _build_ratio_options()
 
 FORMAT_OPTIONS = {
     "維持原格式": "keep",

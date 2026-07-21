@@ -54,6 +54,22 @@ class TestAppSmoke:
         # 就算打字篩選，也只能點選清單內的選項，不該冒出寬/高數字輸入框
         assert len(at.sidebar.number_input) == 0
 
+    def test_ratio_options_have_shape_icons(self):
+        at = AppTest.from_file(str(APP_PATH))
+        at.run(timeout=15)
+
+        ratio_selectbox = next(
+            sb for sb in at.sidebar.selectbox if sb.label == "補滿長寬比"
+        )
+        # 每個選項都要有形狀圖示開頭（原始／方形／直式／橫式其中一種）
+        assert all(
+            opt[0] in ("🔁", "⬜", "▯", "▭") for opt in ratio_selectbox.options
+        )
+        # 直式比例（寬<高）要用直式圖示、橫式比例（寬>高）要用橫式圖示
+        assert any(opt.startswith("▯　9:16") for opt in ratio_selectbox.options)
+        assert any(opt.startswith("▭　3:2") for opt in ratio_selectbox.options)
+        assert any(opt.startswith("⬜　1:1") for opt in ratio_selectbox.options)
+
 
 class TestAppUploadAndProcessFlow:
     def test_upload_preview_process_and_download(self):
