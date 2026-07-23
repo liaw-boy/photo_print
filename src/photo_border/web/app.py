@@ -226,16 +226,31 @@ def _is_ios_user_agent(user_agent: str) -> bool:
     return any(token in ua_lower for token in ("iphone", "ipad", "ipod"))
 
 
-def _is_ios_client() -> bool:
-    """iOS 上不管是 Safari 還是 Chrome/Firefox，底層都被迫用 WebKit，同樣有
-    「一次使用者操作只能觸發一次下載」的限制，所以這裡用「是不是 iOS」判斷，
-    而不是死摳字面上的 Safari 名稱。
+def _is_download_limited_user_agent(user_agent: str) -> bool:
+    """判斷是不是「一次使用者操作只能觸發一個下載」的 WebKit 系瀏覽器。
+
+    不只 iOS（不管殼是 Safari／Chrome／Firefox，底層都被迫用 WebKit）——連
+    桌機版 macOS Safari 都有一樣的限制，連續同步觸發好幾個下載，實測只有
+    最後一個真的會存下來，其餘都被悄悄吃掉。用「是不是 Safari／WebKit」
+    判斷，而不是只挑 iOS，才不會漏掉桌機 Safari 這個同樣會出問題的情況。
     """
+    ua_lower = user_agent.lower()
+    if _is_ios_user_agent(user_agent):
+        return True
+    is_safari = "safari" in ua_lower
+    is_other_engine = any(
+        token in ua_lower
+        for token in ("chrome", "chromium", "crios", "edg", "firefox", "fxios", "opr")
+    )
+    return is_safari and not is_other_engine
+
+
+def _is_download_limited_client() -> bool:
     try:
         user_agent = st.context.headers.get("User-Agent", "")
     except Exception:
         return False
-    return _is_ios_user_agent(user_agent)
+    return _is_download_limited_user_agent(user_agent)
 
 
 def _resolve_mode(ratio: str | None, percent: float) -> str:
@@ -623,15 +638,21 @@ def _inject_auto_download() -> None:
 
     下載按鈕本體還在（瀏覽器下載一定要有真實的使用者互動/點擊事件才能觸發），
     只是整個 container 用 CSS 藏起來，改用注入的 JS 自動 .click() 一次。
-    每顆按鈕點過就標記起來，避免同一顆在後續 rerun 時被重複點擊、重複下載。
     多檔案時所有按鈕要在同一輪、不中斷地連續點完（不能用 setTimeout 分開間隔）——
     瀏覽器的下載觸發跟「使用者互動」的有效期很短，中間只要一有非同步延遲，
     間隔開來的後面幾個點擊就會被瀏覽器悄悄擋掉，只有第一個下載會成功。
+
+    點過的按鈕不能只在 DOM 節點本身標記：download_button 被點擊本身也算一次
+    Streamlit 互動，會觸發 script rerun，而 rerun 之間 Streamlit 不一定會重用
+    同一個按鈕的 DOM 節點——節點換掉的話，標記在節點上的旗標就跟著消失，這個
+    retry loop 就會把同一個檔案重新點一次，造成間歇性的重複下載。改成把「點過
+    哪些」記在 window.parent.document 本身（跨這個 iframe 每次 rerun 重新注入
+    都還在），用按鈕自己的 Streamlit key（穩定不變）當識別，而不是 DOM 節點。
     """
     st.markdown(
         """
         <style>
-        [class*="st-key-pfl_download_area_"] {
+        [class*="st-key-pfl_dlarea_"] {
             display: none !important;
         }
         </style>
@@ -643,12 +664,23 @@ def _inject_auto_download() -> None:
         <script>
         (function() {
             const doc = window.parent.document;
+            if (!doc.__pflClickedDownloadKeys) {
+                doc.__pflClickedDownloadKeys = new Set();
+            }
 
             function autoClickDownloads() {
-                const buttons = doc.querySelectorAll('[class*="st-key-pfl_download_area_"] button');
-                buttons.forEach(function(button) {
-                    if (button.__pflAutoClicked) return;
-                    button.__pflAutoClicked = true;
+                const items = doc.querySelectorAll(
+                    '[class*="st-key-pfl_dlarea_"] [class*="st-key-pfl_download_"]'
+                );
+                items.forEach(function(item) {
+                    const match = item.className.match(/st-key-pfl_download_\\S+/);
+                    if (!match) return;
+                    const stableKey = match[0];
+                    if (doc.__pflClickedDownloadKeys.has(stableKey)) return;
+
+                    const button = item.querySelector('button');
+                    if (!button) return;
+                    doc.__pflClickedDownloadKeys.add(stableKey);
                     button.click();
                 });
             }
@@ -690,7 +722,7 @@ def _render_results(current_signature: tuple, export_mode: str, export_attempt: 
     # key 裡帶著 export_attempt：每次「真的按下匯出」都是新的嘗試，重新掛載這個
     # container 讓按鈕變成全新的 DOM 節點，這樣使用者才能靠重按「匯出」來重試
     # 下載（例如 iOS Safari 只成功下載第一張時，可以重按幾次補下載其餘檔案）。
-    with st.container(key=f"pfl_download_area_{export_attempt}"):
+    with st.container(key=f"pfl_dlarea_{export_attempt}"):
         if export_mode == "individual":
             for name, content in st.session_state["last_files"]:
                 st.download_button(
@@ -723,12 +755,12 @@ def main() -> None:
         st.info("請先在左側上傳照片。")
         return
 
-    if export_mode == "individual" and len(uploaded_files) > 1 and _is_ios_client():
-        # iOS（不管 Safari／Chrome／Firefox，底層都是 WebKit）一次操作只能觸發
-        # 一次下載，個別下載模式對多張照片一定會漏檔，這裡直接改用 zip 打包，
-        # 一次下載一個檔案就不會踩到這個平台限制。
+    if export_mode == "individual" and len(uploaded_files) > 1 and _is_download_limited_client():
+        # Safari／WebKit（含桌機版與 iOS）一次操作只能觸發一次下載，個別下載
+        # 模式對多張照片一定會漏檔，這裡直接改用 zip 打包，一次下載一個檔案
+        # 就不會踩到這個平台限制。
         export_mode = "zip"
-        st.info("偵測到 iOS 瀏覽器：多張照片會自動改用「打包成 zip」下載，避免下載失敗。")
+        st.info("偵測到 Safari／iOS 瀏覽器：多張照片會自動改用「打包成 zip」下載，避免下載失敗。")
 
     try:
         config = config_builder.build_border_config(**ui_values)

@@ -281,3 +281,45 @@ st.write(str(_is_ios_user_agent(
         # 結果來比對，濾掉那些雜訊。
         bool_values = [md.value for md in at.markdown if md.value in ("True", "False")]
         assert bool_values == ["True", "False", "True"]
+
+    def test_download_limited_detection_covers_desktop_and_mobile_safari(self):
+        src_dir = APP_PATH.parent.parent.parent
+        at = AppTest.from_string(
+            f"""
+import sys
+sys.path.insert(0, {str(src_dir)!r})
+from photo_border.web.app import _is_download_limited_user_agent
+import streamlit as st
+
+# iPhone Safari -> 限制
+st.write(str(_is_download_limited_user_agent(
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+)))
+# 桌機版 macOS Safari -> 一樣有限制（這是先前漏掉、只抓 iOS 沒抓到的情況）
+st.write(str(_is_download_limited_user_agent(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+)))
+# 桌機版 Chrome（UA 裡也有 Safari 字樣，但引擎不是 WebKit 限制）-> 不算
+st.write(str(_is_download_limited_user_agent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+)))
+# iOS 上的 Chrome（CriOS，底層仍是 WebKit）-> 一樣算
+st.write(str(_is_download_limited_user_agent(
+    "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) CriOS/120.0 Mobile/15E148 Safari/604.1"
+)))
+# Firefox -> 不算
+st.write(str(_is_download_limited_user_agent(
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0"
+)))
+""",
+            default_timeout=15,
+        )
+        at.run()
+
+        assert not at.exception
+        bool_values = [md.value for md in at.markdown if md.value in ("True", "False")]
+        assert bool_values == ["True", "True", "False", "True", "False"]
